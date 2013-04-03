@@ -45,8 +45,8 @@ achieve its goals. Truly horrible, shameful things.
 
 For the time being, there is one strict naming convention that must be followed for
 the module to not fail even more miserably than it's actually supposed to. The names
-of all Acme::ConstraintByName objects must begin with "<type>\_with\_" or
-"<type>\_which\_contains\_", where <type> should be the Perl type `scalar`, `arrayref`
+of all Acme::ConstraintByName objects must begin with "{type}\_with\_" or
+"{type}\_which\_contains\_", where {type} should be the Perl type `scalar`, `arrayref`
 or `hashref` (though only scalar is currently supported). And yes, I am fully aware
 that all three of those are actually scalars. You've read this far through the
 POD without having me tried before the World Court in the Hague, which I believe is
