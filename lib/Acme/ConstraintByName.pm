@@ -4,6 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 
+use Carp;
+use Data::Dumper;
 use PadWalker qw( peek_my );
 
 =head1 NAME
@@ -29,7 +31,8 @@ code!
 
     use Acme::ConstraintByName;
 
-    my $scalar_which_contains_integers_between_10_and_5000_divisible_by_37_point_2 = Acme::ConstraintByName->new();
+    my $scalar_which_contains_integers_between_10_and_5000_divisible_by_37_point_2;
+    $scalar_which_contains_integers_between_10_and_5000_divisible_by_37_point_2 = Acme::ConstraintByName->new();
 
     # This will work
     $scalar_which_contains_integers_between_10_and_5000_divisible_by_37_point_2 = 558;
@@ -37,12 +40,28 @@ code!
     # This will die()
     $scalar_which_contains_integers_between_10_and_5000_divisible_by_37_point_2 = 56;
 
+The most obvious limitation of this module at the current time is that you must
+initialize the variable name as a distinct statement from assigning the object
+reference to it. This is unfortunately due to the need for the variable to be in
+the symbol table so that Acme::ConstraintByName may find it. I have some pretty
+disgusting ideas on how to remove this limitation in a future release.
+
 For now, this module only supports scalars. Debate is ongoing whether to extend the
 insanity to hash and array references.
 
 Once you have created your Acme::ConstraintByName object, you may use the variable more
 or less like a normal scalar. Assignment is overloaded to enforce the constraints, but
 it will evaluate as a regular scalar in all other access contexts.
+
+=head1 NAMING CONVENTIONS
+
+As if you couldn't guess, this module will do some incredibly horrible things to
+achieve its goals. Truly horrible, shameful things.
+
+For the time being, there is one strict naming convention that must be followed for
+the module to not fail even more miserably than it's actually supposed to. The names
+of all Acme::ConstraintByName objects must begin with "type_with_" or "type_which_contains_".
+If you want to know why, I suggest you call your shrink, or find a new line of work.
 
 =head1 SUBROUTINES/METHODS
 
@@ -62,7 +81,23 @@ sub new {
 
     my $self = bless {}, $class;
 
+    $self->name(_get_name());
+
     return $self;
+}
+
+sub _get_name {
+    my $match = qr{^\$(scalar|hashref|arrayref)_(with|which_contains)_};
+
+    foreach my $level (0..2) {
+        my $vars = peek_my($level);
+
+        foreach my $name (grep { lc($_) =~ m{$match}o } keys %{$vars}) {
+            return $name if ref($vars->{$name}) ne 'Acme::ConstraintByName';
+        }
+    }
+
+    croak "Cannot determine name of object reference being constructed.";
 }
 
 =head1 CONSTRAINTS
@@ -89,6 +124,49 @@ Accepts two arguments (the "and" is optional and not counted toward that limit, 
 additional verbosity is well within the spirit of this module). They can be low or high first,
 and can be anything that will 
 
+=cut
+
+=head1 METHODS
+
+When you tire of accessing or setting the value of the Acme::ConstraintByName object as if it
+were a normal scalar variable, you may find some of the following methods of interest.
+
+=cut
+
+=head2 constraints
+
+Returns an array of constraints applied to the value contained with the object.
+These are provided as Acme::ConstraintByName::Constraint objects.
+
+=cut
+
+sub constraints {
+    my ($self) = @_;
+
+    return @{$self->{'constraints'}}
+        if exists $self->{'constraints'}
+        and ref($self->{'constraints'}) eq 'ARRAY';
+    return;
+}
+
+=head2 name
+
+Returns the full name of the variable which holds the object reference.
+
+=cut
+
+sub name {
+    my ($self, $name) = @_;
+
+    $self->{'name'} = $name
+        if defined $name
+        and !exists $self->{'name'};
+
+    return $self->{'name'}
+        if exists $self->{'name'};
+    return;
+}
+
 =head1 AUTHOR
 
 Jon Sime, C<< <jonsime at gmail.com> >>
@@ -96,6 +174,8 @@ Jon Sime, C<< <jonsime at gmail.com> >>
 =head1 TODO
 
 =over 4
+
+=item * Remove need to 'my' an undefined variable before assigning the object reference to it.
 
 =item * Add support for array and hash references.
 
