@@ -8,6 +8,9 @@ use Carp;
 use Data::Dumper;
 use PadWalker qw( peek_my );
 
+use Acme::ConstraintByName::Constraint;
+use Module::Pluggable search_path => ['Acme::ConstraintByName::Constraint'], require => 1;
+
 =head1 NAME
 
 Acme::ConstraintByName - Descriptive variable names have never been more constraining!
@@ -60,8 +63,16 @@ achieve its goals. Truly horrible, shameful things.
 
 For the time being, there is one strict naming convention that must be followed for
 the module to not fail even more miserably than it's actually supposed to. The names
-of all Acme::ConstraintByName objects must begin with "type_with_" or "type_which_contains_".
-If you want to know why, I suggest you call your shrink, or find a new line of work.
+of all Acme::ConstraintByName objects must begin with "<type>_with_" or
+"<type>_which_contains_", where <type> should be the Perl type C<scalar>, C<arrayref>
+or C<hashref> (though only scalar is currently supported). And yes, I am fully aware
+that all three of those are actually scalars. You've read this far through the
+POD without having me tried before the World Court in the Hague, which I believe is
+proof enough that your judgment and decisions in life are almost as damnable as
+my laziness in using proper Perl nomenclature, so pipe down.
+
+If you want to know why this basic naming convention is required, I suggest you
+call your shrink, or find a new line of work.
 
 =head1 SUBROUTINES/METHODS
 
@@ -81,9 +92,9 @@ sub new {
 
     my $self = bless {}, $class;
 
-    $self->name(_get_name());
+    $self->{'name'} = _get_name();
 
-    return $self;
+    return tie $self, 'Acme::ConstraintByName::impl', $self;
 }
 
 sub _get_name {
@@ -126,6 +137,33 @@ and can be anything that will
 
 =cut
 
+package Acme::ConstraintByName::impl;
+
+use strict;
+use warnings;
+
+sub TIESCALAR {
+    my ($class, $obj) = @_;
+    return bless $obj, $class;
+}
+
+sub FETCH {
+    my ($self) = @_;
+    print STDERR "---- FETCH ---- called\n";
+
+    return $self->{'value'} if exists $self->{'value'};
+    return;
+}
+
+sub STORE {
+    my ($self, $value) = @_;
+    print STDERR "---- STORE ---- called with $value\n";
+    # ... call all constraints within object to valid incoming value ...
+
+    $self->{'value'} = $value;
+    return $self->{'value'};
+}
+
 =head1 METHODS
 
 When you tire of accessing or setting the value of the Acme::ConstraintByName object as if it
@@ -136,7 +174,7 @@ were a normal scalar variable, you may find some of the following methods of int
 =head2 constraints
 
 Returns an array of constraints applied to the value contained with the object.
-These are provided as Acme::ConstraintByName::Constraint objects.
+These are provided as Acme::ConstraintByName::Constraint::* objects.
 
 =cut
 
